@@ -1,61 +1,104 @@
-// import { useEffect } from "react";
-const { StarIcon, CheckCircleIcon }=require("@heroicons/react/24/solid");
-// const { LogInWithAnonAadhaar,  }=require("anon-aadhaar-react");
-// const { useAnonAadhaar } =require("anon-aadhaar-react");
-// const { AnonAadhaarProof } = require("anon-aadhaar-react");
-const React =require("react");
+import React from "react";
+import { useState, useEffect } from "react";
+import { StarIcon, CheckCircleIcon } from "@heroicons/react/24/solid";
+import {
+  LogInWithAnonAadhaar,
+  useAnonAadhaar,
+  AnonAadhaarProof,
+} from "anon-aadhaar-react";
+import { useContractRead } from "wagmi";
+import cont from "./contract.json"
 
-export default function DailyComp() {
-//   const [anonAadhaar] = useAnonAadhaar();
 
-// //   const anonAadhaar = {"status":"hi"}
-//   useEffect(() => {
-//     console.log("Anon Aadhaar status: ", anonAadhaar.status);
-//   }, [anonAadhaar]);
-  const anonAadhaar={"status":"logged-in"}
-  const isComplete = false;
+export default function Widget({campId}:{campId:number}) {
+  const [campaignData, setCampaignData] = useState([]);
+  const [anonAadhaar] = useAnonAadhaar();
+  const cid=campId
+  const { data, isError, isLoading } = useContractRead({
+    address: cont.address as `0x${string}`,
+    abi: cont.abi,
+    functionName: 'campaigns',
+    args: [cid]
+  })
+  console.log("data",data)
+  useEffect(() => {
+    console.log("Anon Aadhaar status: ", anonAadhaar.status);
+  }, [anonAadhaar]);
 
+  let isComplete = false;
+  const contractRead = useContractRead({
+    address:cont.address as  `0x${string}`,
+    abi: cont.abi,
+    functionName: 'getCampaign',  
+    args: [cid]
+  })
+  console.log("aa",contractRead.data)
+  const quest = useContractRead({
+  address: cont.address as `0x${string}`,
+  abi: cont.abi,
+  functionName: 'getCampaignQuests',
+  args: [0],
+});
+const safe=(contractRead.data as { safe: string })?.safe
+const qst = {
+  "0x2452a4eEC9359Ff93C084ed5eD3E21eaC197586D": "LensFollowPlugin",
+  "0xD82ee61aA30d018239350f9843cB8A4967B8b3da": "XMTPChatPlugin",
+  "0x75518315aeB64958CBC6a95EE4D07c34077F1D90": "ContractInteractPlugin",
+};
+const cmp =(quest.data as string[])?.map((q: string) =>{
+  useContractRead({
+    address: q as `0x${string}`,
+    abi: cont.abi,
+    functionName: 'isCompleted',
+    args: [safe],
+  });
+})
+const dat = {
+  name: (contractRead.data as { name: string })?.name,
+  days: (quest.data as string[])?.length,
+  tasks: (quest.data as string[])?.map((q: string) => qst[q as keyof typeof qst]) || [],
+  completion:cmp
+};
   return (
-    <div>
+    <>
       {anonAadhaar.status == "logged-in" ? (
         <section className="my-3 ring-2 ring-indigo-400 rounded-xl p-3">
           <div className="mt-2 flex justify-between items-center">
-            <h1 className="font-bold text-2xl">DexTech DailyGM</h1>
-            <p>My points: 0</p>
+            <h1 className="font-bold text-2xl">{dat.name}</h1>
           </div>
-          <div className="mt-3 flex justify-between">
+          
+            <div className="mt-3 flex ">
+            {dat.completion.map((comp: any, index: number) => (
             <div
-              className={`grid grid-cols-1 gap-3 shadow-lg rounded-lg p-3 px-4 ring-1 ${
-                !isComplete
+              className={`grid grid-col-1 gap-3 shadow-lg ml-5 rounded-lg p-3 px-4 ring-1 w-92 h-92 ${
+                !comp
                   ? "ring-indigo-600 bg-indigo-100"
                   : "ring-green-600 bg-green-100"
               }`}
             >
-              {!isComplete ? (
-                <StarIcon className="h-10 w-10 text-indigo-600" />
+              {!comp ? (
+                <div className=" flex justify-center ">
+                <StarIcon className="h-10 w-10 text-indigo-600 text-center" />
+                </div>
               ) : (
-                <CheckCircleIcon className="h-10 w-10 text-green-600" />
+                <div className=" flex justify-center ">
+                <CheckCircleIcon className="h-10 w-10 text-green-600 " />
+                </div>
               )}
-              <div className="font-bold">Day 0</div>
+              <div className="font-bold text-center">Day {index+1}</div>
+              <div className="font-bold text-center"> {dat.tasks[index]}</div>
             </div>
+            ))}
           </div>
-          <div className="mt-3">
-            <div className="text-sm">Task 1: Share something on Lens</div>
-          </div>
+          {/* <div className="mt-3">
+            {dat.tasks.map((task:any, index: number)=>(<div className="text-sm">Task {index+1}: {task}</div>))}
+          </div> */}
           <div className="py-2 px-3 text-xl text-center mt-7 text-white bg-indigo-600 rounded-lg mb-2">
             Post on Lens
           </div>
-          <div className="flex justify-between items-center">
-            <div className="pt-2 text-xs">
-              Powered by{" "}
-              <span className="font-bold text-indigo-400">RPS Labs</span>
-            </div>
-            <div>
-              <p>✅ Proof is valid</p>
-              {/* <AnonAadhaarProof
-                code={JSON.stringify(anonAadhaar.pcd, null, 2)}
-              /> */}
-            </div>
+          <div className="pt-2 text-xs">
+            Powered by{" "}
+            <span className="font-bold text-indigo-400">RPS Labs</span>
           </div>
         </section>
       ) : (
@@ -64,11 +107,20 @@ export default function DailyComp() {
             Connect with Anon Aadhar to continue
           </div>
           <div>
-            {/* <LogInWithAnonAadhaar /> */}
-            <p>{anonAadhaar?.status}</p>
-          </div>
+        <LogInWithAnonAadhaar />
+        <p>{anonAadhaar?.status}</p>
+      </div>
+      <div>
+        {/* Render the proof if generated and valid */}
+        {anonAadhaar?.status === "logged-in" && (
+          <>
+            <p>✅ Proof is valid</p>
+            <AnonAadhaarProof code={JSON.stringify(anonAadhaar.pcd, null, 2)} />
+          </>
+        )}
+      </div>
         </section>
       )}
-    </div>
+    </>
   );
 }
